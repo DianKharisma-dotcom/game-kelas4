@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ruang Game Kelas 4</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e2eadd;--ink:#22372b;--ink2:#566e5f;--hi:#f6faf3;--lo:#bccab6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#c9d7c4;font-family:'Nunito',system-ui,sans-serif;color:var(--ink)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+
+/* Kanvas tetap 1920x1080 (16:9), diskalakan otomatis agar pas di layar apa pun */
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;background:var(--bg);overflow:hidden;transform-origin:center}
+
+#home{position:absolute;inset:0;display:grid;grid-template-columns:520px minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:80px;padding:80px}
+.hero{display:flex;flex-direction:column;justify-content:center}
+.hero small{font-size:30px;font-weight:800;color:var(--ink2);margin-bottom:20px}
+.hero h1{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:112px;line-height:.95;letter-spacing:-1px}
+.hero p{font-size:32px;line-height:1.4;color:var(--ink2);margin-top:36px;max-width:440px}
+.hero .total{margin-top:48px;display:inline-flex;align-self:flex-start;padding:16px 30px;border-radius:999px;font-size:26px;font-weight:800;box-shadow:inset 6px 6px 12px var(--lo),inset -6px -6px 12px var(--hi)}
+
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:30px;min-height:0;height:100%}
+.card{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:left;padding:28px 32px;border-radius:40px;background:var(--bg);box-shadow:14px 14px 28px var(--lo),-14px -14px 28px var(--hi);transition:box-shadow .15s,transform .15s}
+.card:active{box-shadow:inset 8px 8px 16px var(--lo),inset -8px -8px 16px var(--hi);transform:scale(.985)}
+.ikon{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;font-size:54px;background:var(--c);flex:none}
+.card h2{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:40px;line-height:1.05}
+.card span{display:block;margin-top:6px;font-size:26px;font-weight:700;color:var(--ink2)}
+
+/* Tombol fullscreen kecil */
+#fs{position:absolute;top:24px;right:24px;z-index:50;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--bg);box-shadow:5px 5px 10px var(--lo),-5px -5px 10px var(--hi);opacity:.85}
+#fs:active{box-shadow:inset 3px 3px 6px var(--lo),inset -3px -3px 6px var(--hi)}
+#fs svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#fs .keluar{display:none}
+body.fs #fs .masuk{display:none}
+body.fs #fs .keluar{display:block}
+
+/* Layar daftar game & layar pemutar game */
+.layar{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg);z-index:10}
+.layar.on{display:flex}
+.bar{display:flex;align-items:center;gap:28px;height:96px;padding:0 100px 0 48px;flex:none}
+.kembali{padding:14px 30px;border-radius:999px;font-size:28px;font-weight:800;box-shadow:6px 6px 12px var(--lo),-6px -6px 12px var(--hi)}
+.kembali:active{box-shadow:inset 4px 4px 8px var(--lo),inset -4px -4px 8px var(--hi)}
+.bar h2{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:44px}
+.daftar{flex:1;padding:24px 80px 80px;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:260px;gap:34px;align-content:start}
+.daftar .card{justify-content:center;gap:10px}
+.daftar .card h2{font-size:40px}
+.kosong{grid-column:1/-1;font-size:34px;line-height:1.5;color:var(--ink2);padding:60px 0;max-width:1100px}
+#frame{flex:1;width:100%;border:0;background:#fff}
+</style>
+</head>
+<body>
+<div id="stage">
+  <button id="fs" aria-label="Layar penuh" title="Layar penuh">
+    <svg class="masuk" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    <svg class="keluar" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+  </button>
+
+  <main id="home">
+    <section class="hero">
+      <small>SD Negeri 3 Pacung</small>
+      <h1>Ruang Game Kelas 4</h1>
+      <p>Pilih mata pelajaran, lalu pilih game yang akan dimainkan.</p>
+      <div class="total" id="total"></div>
+    </section>
+    <section class="grid" id="grid"></section>
+  </main>
+
+  <section class="layar" id="list">
+    <div class="bar"><button class="kembali" id="backHome">‹ Beranda</button><h2 id="listTitle"></h2></div>
+    <div class="daftar" id="daftar"></div>
+  </section>
+
+  <section class="layar" id="player">
+    <div class="bar"><button class="kembali" id="backList">‹ Kembali</button><h2 id="playTitle"></h2></div>
+    <iframe id="frame" title="Game" allow="fullscreen; camera; microphone" allowfullscreen></iframe>
+  </section>
+</div>
+
+<script>
+/* ====== DAFTAR MATA PELAJARAN & GAME — edit di sini ====== */
+const MAPEL = [
+  {id:'agama',  nama:'Pendidikan Agama',  ikon:'🪔', warna:'#f4d58d'},
+  {id:'ppkn',   nama:'PPKn',              ikon:'🤝', warna:'#f0b8a8'},
+  {id:'bindo',  nama:'Bahasa Indonesia',  ikon:'📖', warna:'#b9d4e8'},
+  {id:'mtk',    nama:'Matematika',        ikon:'➗', warna:'#c9e0a8'},
+  {id:'ipas',   nama:'IPAS',              ikon:'🌏', warna:'#a9dcd0'},
+  {id:'seni',   nama:'Seni Rupa',         ikon:'🎨', warna:'#e3c2e6'},
+  {id:'pjok',   nama:'PJOK',              ikon:'⚽', warna:'#f6c99a'},
+  {id:'bing',   nama:'Bahasa Inggris',    ikon:'🔤', warna:'#c7c9f0'},
+  {id:'bali',   nama:'Bahasa Bali',       ikon:'🌺', warna:'#f2b6c6'}
+];
+const GAMES = [
+  {mapel:'mtk', judul:'Lab Pecahan Digital', bab:'Pecahan', ikon:'🍕', file:'games/matematika/lab-pecahan.html'},
+  {mapel:'bindo', judul:'Lompat Pilih Konjungsi', bab:'Bab 2 · Kalimat majemuk', ikon:'🦘', file:'games/bahasa-indonesia/lompat-konjungsi.html'}
+  // Contoh menambah game baru:
+  // {mapel:'ipas', judul:'Bentang Alam Indonesia', bab:'Letak geografis', ikon:'🏝️', file:'games/ipas/bentang-alam.html'},
+];
+/* ========================================================= */
+
+const $ = id => document.getElementById(id);
+const stage = $('stage');
+let current = null;
+
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', fit); fit();
+
+function jumlah(id){ return GAMES.filter(g => g.mapel === id).length; }
+
+function renderHome(){
+  $('grid').innerHTML = MAPEL.map(m => {
+    const n = jumlah(m.id);
+    return `<button class="card" data-id="${m.id}" style="--c:${m.warna}">
+      <div class="ikon">${m.ikon}</div>
+      <div><h2>${m.nama}</h2><span>${n ? n + ' game' : 'Belum ada game'}</span></div></button>`;
+  }).join('');
+  $('total').textContent = `${GAMES.length} game · ${MAPEL.length} mata pelajaran`;
+  $('grid').querySelectorAll('.card').forEach(b => b.onclick = () => openList(b.dataset.id));
+}
+
+function openList(id){
+  current = MAPEL.find(m => m.id === id);
+  $('listTitle').textContent = current.nama;
+  const items = GAMES.filter(g => g.mapel === id);
+  $('daftar').innerHTML = items.length
+    ? items.map((g,i) => `<button class="card" data-i="${GAMES.indexOf(g)}" style="--c:${current.warna}">
+        <div class="ikon" style="width:96px;height:96px;font-size:52px">${g.ikon || '🎮'}</div>
+        <div><h2>${g.judul}</h2><span>${g.bab || ''}</span></div></button>`).join('')
+    : `<p class="kosong">Belum ada game untuk ${current.nama}. Tambahkan lewat daftar GAMES di bagian atas script file ini.</p>`;
+  $('daftar').querySelectorAll('.card').forEach(b => b.onclick = () => play(GAMES[b.dataset.i]));
+  $('list').classList.add('on');
+}
+
+function play(g){
+  $('playTitle').textContent = g.judul;
+  $('frame').src = g.file;
+  $('player').classList.add('on');
+}
+
+$('backList').onclick = () => { $('player').classList.remove('on'); $('frame').src = 'about:blank'; };
+$('backHome').onclick = () => $('list').classList.remove('on');
+
+/* Layar penuh */
+const de = document.documentElement;
+const isFs = () => document.fullscreenElement || document.webkitFullscreenElement;
+function syncFs(){
+  const on = !!isFs();
+  document.body.classList.toggle('fs', on);
+  $('fs').setAttribute('aria-label', on ? 'Keluar layar penuh' : 'Layar penuh');
+  $('fs').title = on ? 'Keluar layar penuh' : 'Layar penuh';
+  setTimeout(fit, 50);
+}
+$('fs').onclick = () => {
+  try {
+    if (isFs()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (de.requestFullscreen || de.webkitRequestFullscreen).call(de);
+  } catch(e) {}
+};
+document.addEventListener('fullscreenchange', syncFs);
+document.addEventListener('webkitfullscreenchange', syncFs);
+
+renderHome();
+</script>
+</body>
+</html>

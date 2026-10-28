@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lompat Pilih Konjungsi</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e2eadd;--ink:#22372b;--ink2:#566e5f;--hi:#f6faf3;--lo:#bccab6}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%;overflow:hidden;font-family:'Nunito',system-ui,sans-serif;color:var(--ink);background:#22372b}
+#app{position:relative;width:100%;height:100vh;overflow:hidden}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);filter:brightness(.5)}
+#ov{position:absolute;inset:0;z-index:3;pointer-events:none}
+.zone{position:absolute;top:0;bottom:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;transition:background .3s}
+#zl{left:0;width:50%;background:rgba(90,169,230,.28)}
+#zr{left:50%;right:0;background:rgba(244,162,89,.28)}
+.zone span{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:clamp(56px,9vw,180px);color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.5);margin-top:6vh}
+.zone em{font-style:normal;font-weight:800;font-size:clamp(28px,3vw,56px);color:#fff;min-height:1.3em}
+.zone.ok{background:rgba(76,175,110,.55)}
+.zone.no{background:rgba(214,72,72,.5)}
+#line{position:absolute;top:0;bottom:0;left:50%;width:6px;margin-left:-3px;background:#fff;opacity:.9;z-index:4}
+#top{position:absolute;top:2vh;left:50%;transform:translateX(-50%);z-index:5;width:min(92%,1500px);background:var(--bg);border-radius:36px;padding:1.6vh 2.4vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+#top small{display:block;font-weight:800;font-size:clamp(16px,1.4vw,26px);color:var(--ink2)}
+.pair{display:flex;align-items:center;justify-content:center;gap:1.6vw;flex-wrap:wrap}
+.pair p{font-weight:800;font-size:clamp(24px,2.6vw,52px);line-height:1.2}
+.pair b{font-size:clamp(28px,3vw,56px);color:var(--ink2)}
+#info{position:absolute;left:50%;bottom:13vh;transform:translateX(-50%);z-index:5;width:min(90%,1400px);background:var(--bg);border-radius:30px;padding:1.6vh 2vw;text-align:center;font-weight:700;font-size:clamp(20px,2vw,38px);line-height:1.35;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+#timer{position:absolute;left:50%;bottom:14vh;transform:translateX(-50%);z-index:5;width:clamp(90px,8vw,150px);height:clamp(90px,8vw,150px);border-radius:50%;background:var(--bg);display:grid;place-items:center;font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:clamp(48px,5vw,96px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+#timer.low{background:#f3b3a8;color:#8b1f1f}
+#bar{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:2vw;padding:1.4vh 2vw;background:rgba(20,32,25,.75);color:#fff}
+#hud{font-weight:800;font-size:clamp(18px,1.6vw,30px)}
+button{font:inherit;color:var(--ink);border:0;cursor:pointer;background:var(--bg);border-radius:999px;font-weight:800}
+#go{font-size:clamp(22px,2vw,38px);padding:1.2vh 2.4vw}
+#gear{position:absolute;top:2vh;left:1.4vw;z-index:7;width:46px;height:46px;font-size:24px;opacity:.85}
+#panel{position:absolute;top:calc(2vh + 56px);left:1.4vw;z-index:7;width:340px;background:var(--bg);border-radius:28px;padding:20px 24px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#panel label{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-weight:800;font-size:18px;margin-bottom:12px}
+#panel input{grid-column:1/-1;width:100%;accent-color:#4c8a63}
+.ovl{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;text-align:center;background:var(--bg);padding:4vw}
+.ovl h1{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:clamp(48px,6vw,110px);line-height:1}
+.ovl p{font-weight:700;font-size:clamp(20px,2vw,36px);color:var(--ink2);max-width:1200px;line-height:1.4}
+.ovl .row{display:flex;gap:2vw;flex-wrap:wrap;justify-content:center}
+.ovl button{font-size:clamp(22px,2vw,38px);padding:1.8vh 2.6vw;box-shadow:8px 8px 16px var(--lo),-8px -8px 16px var(--hi)}
+.ovl button.main{background:#4c8a63;color:#fff}
+</style>
+</head>
+<body>
+<div id="app">
+  <video id="cam" playsinline muted></video>
+  <canvas id="ov"></canvas>
+  <div class="zone" id="zl"><span id="wl"></span><em id="tl"></em></div>
+  <div class="zone" id="zr"><span id="wr"></span><em id="tr"></em></div>
+  <div id="line"></div>
+  <div id="top"><small id="rd"></small><div class="pair"><p id="s1"></p><b>+</b><p id="s2"></p></div></div>
+  <div id="timer"></div>
+  <div id="info" hidden></div>
+  <div id="bar"><span id="hud"></span><button id="go">Cek jawaban</button></div>
+
+  <button id="gear" aria-label="Pengaturan">⚙</button>
+  <div id="panel" hidden>
+    <label><span>Garis tengah (%)</span><output>50</output><input id="mid" type="range" min="30" max="70" value="50"></label>
+    <label><span>Zona netral (%)</span><output>4</output><input id="nt" type="range" min="0" max="10" value="4"></label>
+    <label><span>Waktu menjawab (detik)</span><output>10</output><input id="wt" type="range" min="5" max="20" value="10"></label>
+    <label><span>Maksimal siswa terbaca</span><output>6</output><input id="np" type="range" min="1" max="10" value="6"></label>
+  </div>
+
+  <div class="ovl" id="start">
+    <h1>Lompat Pilih Konjungsi</h1>
+    <p>Baca dua kalimat di layar, lalu berdiri di sisi kiri atau kanan sesuai kata hubung yang tepat. Siswa yang salah atau berada di garis tengah saat waktu habis duduk kembali.</p>
+    <p id="msg"></p>
+    <div class="row"><button class="main" id="b1">Aktifkan kamera dan mulai</button><button id="b2">Mulai tanpa kamera</button></div>
+  </div>
+  <div class="ovl" id="end" hidden>
+    <h1>Permainan selesai</h1>
+    <p id="endmsg"></p>
+    <div class="row"><button class="main" id="again">Main lagi</button></div>
+  </div>
+</div>
+
+<script type="module">
+import {PoseLandmarker, FilesetResolver} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+const WASM='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+const MODEL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+
+/* ====== BANK SOAL — edit di sini ======
+   s1, s2 = dua kalimat (tanpa titik akhir; s2 diawali huruf kecil kecuali nama)
+   benar  = konjungsi yang tepat, salah = pengecoh */
+const Q=[
+ {s1:'Siwi mematikan lampu',s2:'Kak Lita mencabut steker',benar:'dan',salah:'tetapi'},
+ {s1:'Abdul selesai menonton televisi',s2:'Abdul lupa mematikan televisi',benar:'tetapi',salah:'dan'},
+ {s1:'Kak Lita membuka jendela lebar-lebar',s2:'udara segar memasuki kamar',benar:'sehingga',salah:'tetapi'},
+ {s1:'Sani menyalakan kipas angin',s2:'Kak Lita mematikannya',benar:'tetapi',salah:'dan'},
+ {s1:'Ibu memasak nasi',s2:'Ayah menyapu halaman',benar:'dan',salah:'sehingga'},
+ {s1:'Hujan turun dengan deras',s2:'jalanan menjadi banjir',benar:'sehingga',salah:'dan'},
+ {s1:'Lampu kamar sudah padam',s2:'kipas angin masih menyala',benar:'tetapi',salah:'sehingga'},
+ {s1:'Listrik padam seharian',s2:'kami belajar dengan cahaya lilin',benar:'sehingga',salah:'tetapi'},
+ {s1:'Budi menyapu lantai',s2:'Wati mengepelnya',benar:'dan',salah:'tetapi'},
+ {s1:'Adik sangat mengantuk',s2:'ia segera tidur',benar:'sehingga',salah:'dan'}
+];
+const KET={dan:'situasi yang sama',tetapi:'situasi yang berlawanan',sehingga:'sebab dan akibat'};
+const COL={L:'#5aa9e6',R:'#f4a259',C:'#9aa5a0'};
+/* ======================================== */
+
+const $=id=>document.getElementById(id), app=$('app'), cam=$('cam'), ov=$('ov');
+let pose=null, mode='manual', people=[], order=[], idx=-1, state='idle', timer=0, tick=null, cs='L', cur=null, sisa=null, lastT=-1;
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+function size(){ov.width=app.clientWidth;ov.height=app.clientHeight}
+addEventListener('resize',size);size();
+
+function pos(){const m=$('mid').value;$('line').style.left=m+'%';$('zl').style.width=m+'%';$('zr').style.left=m+'%'}
+document.querySelectorAll('#panel input').forEach(i=>i.oninput=()=>{
+  i.previousElementSibling.textContent=i.value;
+  if(i.id==='mid')pos();
+  if(i.id==='np'&&pose)pose.setOptions({numPoses:+i.value});
+});
+$('gear').onclick=()=>$('panel').hidden=!$('panel').hidden;
+
+/* posisi tubuh -> koordinat layar (sudah dicerminkan) */
+function toDisp(p){
+  const vw=cam.videoWidth,vh=cam.videoHeight,cw=app.clientWidth,ch=app.clientHeight,s=Math.max(cw/vw,ch/vh);
+  return {x:cw-(p.x*vw*s+(cw-vw*s)/2), y:p.y*vh*s+(ch-vh*s)/2};
+}
+function center(lm){
+  const ok=(a,b)=>lm[a].visibility>.4&&lm[b].visibility>.4;
+  const k=ok(23,24)?[23,24]:ok(11,12)?[11,12]:null;
+  return k?{x:(lm[k[0]].x+lm[k[1]].x)/2,y:(lm[k[0]].y+lm[k[1]].y)/2}:null;
+}
+function side(x){
+  const f=x/app.clientWidth,m=$('mid').value/100,n=$('nt').value/100;
+  return f<m-n?'L':f>m+n?'R':'C';
+}
+function draw(){
+  const c=ov.getContext('2d');c.clearRect(0,0,ov.width,ov.height);
+  const n={L:0,R:0,C:0};
+  people.forEach(p=>{const s=side(p.x);n[s]++;c.beginPath();c.arc(p.x,p.y,28,0,7);c.fillStyle=COL[s];c.fill();c.lineWidth=5;c.strokeStyle='#fff';c.stroke()});
+  $('hud').textContent=mode==='kamera'?`Terbaca ${people.length} siswa · Kiri ${n.L} · Tengah ${n.C} · Kanan ${n.R}`:'Mode tanpa kamera';
+}
+function loop(){
+  if(pose&&cam.readyState>=2&&cam.currentTime!==lastT){
+    lastT=cam.currentTime;
+    const r=pose.detectForVideo(cam,performance.now());
+    people=r.landmarks.map(center).filter(Boolean).map(toDisp);draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+async function startCam(){
+  $('msg').textContent='Memuat kamera dan model deteksi… mohon tunggu.';
+  try{
+    cam.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:false});
+    await cam.play();
+    const fs=await FilesetResolver.forVisionTasks(WASM);
+    const opt=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',numPoses:+$('np').value});
+    try{pose=await PoseLandmarker.createFromOptions(fs,opt('GPU'))}catch(e){pose=await PoseLandmarker.createFromOptions(fs,opt('CPU'))}
+    mode='kamera';requestAnimationFrame(loop);
+  }catch(e){
+    mode='manual';
+    alert('Kamera atau model belum bisa dimuat. Game berjalan tanpa kamera (guru menentukan siswa yang tereliminasi).');
+  }
+  startGame();
+}
+
+function startGame(){
+  $('start').hidden=true;$('end').hidden=true;
+  order=Q.map((_,i)=>i).sort(()=>Math.random()-.5);idx=-1;sisa=null;draw();next();
+}
+function next(){
+  idx++;if(idx>=order.length)return finish();
+  cur=Q[order[idx]];state='play';
+  const flip=Math.random()<.5;cs=flip?'R':'L';
+  $('wl').textContent=flip?cur.salah:cur.benar;$('wr').textContent=flip?cur.benar:cur.salah;
+  ['zl','zr'].forEach(z=>$(z).classList.remove('ok','no'));$('tl').textContent=$('tr').textContent='';
+  $('rd').textContent=`Soal ${idx+1} dari ${order.length}`;
+  $('s1').textContent=cap(cur.s1)+'.';$('s2').textContent=cap(cur.s2)+'.';
+  $('info').hidden=true;$('timer').hidden=false;$('go').textContent='Cek jawaban';
+  timer=+$('wt').value;$('timer').textContent=timer;$('timer').classList.remove('low');
+  clearInterval(tick);
+  tick=setInterval(()=>{timer--;$('timer').textContent=timer;$('timer').classList.toggle('low',timer<=3);if(timer<=0)reveal()},1000);
+}
+function reveal(){
+  clearInterval(tick);if(state!=='play')return;state='rev';
+  const sd=people.map(p=>side(p.x)),ok=sd.filter(s=>s===cs).length,out=sd.length-ok;
+  $('zl').classList.add(cs==='L'?'ok':'no');$('zr').classList.add(cs==='R'?'ok':'no');
+  $('tl').textContent=cs==='L'?'✓ Benar':'✗ Salah';$('tr').textContent=cs==='R'?'✓ Benar':'✗ Salah';
+  const hasil=`${cap(cur.s1)}${cur.benar==='tetapi'?',':''} ${cur.benar} ${cur.s2}.`;
+  let t=`<b>${hasil}</b><br>Kata “${cur.benar}” menghubungkan ${KET[cur.benar]}.`;
+  if(mode==='kamera'&&sd.length){sisa=ok;t+=`<br>${out} siswa tereliminasi, silakan duduk. Tersisa ${ok} siswa.`}
+  else if(mode==='kamera')t+='<br>Belum ada siswa yang terbaca kamera.';
+  else t+='<br>Siswa di sisi yang salah silakan duduk.';
+  $('info').innerHTML=t;$('info').hidden=false;$('timer').hidden=true;
+  $('go').textContent=idx===order.length-1?'Selesai':'Soal berikutnya';
+}
+function finish(){
+  state='idle';
+  $('endmsg').textContent=sisa!==null?`Tersisa ${sisa} siswa di akhir permainan. Selamat untuk semua yang bertahan!`:'Terima kasih sudah bermain. Selamat untuk semua yang bertahan!';
+  $('end').hidden=false;
+}
+$('go').onclick=()=>{state==='play'?reveal():state==='rev'&&next()};
+$('b1').onclick=startCam;
+$('b2').onclick=()=>{mode='manual';startGame()};
+$('again').onclick=startGame;
+pos();
+</script>
+</body>
+</html>
