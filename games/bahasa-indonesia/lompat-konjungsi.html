@@ -38,6 +38,8 @@ button{font:inherit;color:var(--ink);border:0;cursor:pointer;background:var(--bg
 #panel{position:absolute;top:calc(2vh + 56px);left:1.4vw;z-index:7;width:340px;background:var(--bg);border-radius:28px;padding:20px 24px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 #panel label{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-weight:800;font-size:18px;margin-bottom:12px}
 #panel input{grid-column:1/-1;width:100%;accent-color:#4c8a63}
+#warn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;width:min(70%,900px);background:#f7e3b5;color:#5a3d00;border-radius:24px;padding:2vh 2vw;font-weight:800;font-size:clamp(18px,1.8vw,32px);line-height:1.4;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#panel select{grid-column:1/-1;width:100%;font:inherit;font-weight:700;font-size:16px;padding:8px;border-radius:12px;border:0;background:#f6faf3;color:var(--ink)}
 .ovl{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;text-align:center;background:var(--bg);padding:4vw}
 .ovl h1{font-family:'Baloo 2',system-ui,sans-serif;font-weight:800;font-size:clamp(48px,6vw,110px);line-height:1}
 .ovl p{font-weight:700;font-size:clamp(20px,2vw,36px);color:var(--ink2);max-width:1200px;line-height:1.4}
@@ -60,12 +62,14 @@ button{font:inherit;color:var(--ink);border:0;cursor:pointer;background:var(--bg
 
   <button id="gear" aria-label="Pengaturan">⚙</button>
   <div id="panel" hidden>
+    <label><span>Kamera</span><select id="camsel"></select></label>
     <label><span>Garis tengah (%)</span><output>50</output><input id="mid" type="range" min="30" max="70" value="50"></label>
     <label><span>Zona netral (%)</span><output>4</output><input id="nt" type="range" min="0" max="10" value="4"></label>
     <label><span>Waktu menjawab (detik)</span><output>10</output><input id="wt" type="range" min="5" max="20" value="10"></label>
     <label><span>Maksimal siswa terbaca</span><output>6</output><input id="np" type="range" min="1" max="10" value="6"></label>
   </div>
 
+  <div id="warn" hidden></div>
   <div class="ovl" id="start">
     <h1>Lompat Pilih Konjungsi</h1>
     <p>Baca dua kalimat di layar, lalu berdiri di sisi kiri atau kanan sesuai kata hubung yang tepat. Siswa yang salah atau berada di garis tengah saat waktu habis duduk kembali.</p>
@@ -147,18 +151,62 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
+let cams=[],dark=0,busy=false;const tried={};
+const sc=document.createElement('canvas');sc.width=32;sc.height=18;
+function checkDark(){
+  if(cam.readyState<2||busy)return;
+  const x=sc.getContext('2d',{willReadFrequently:true});x.drawImage(cam,0,0,32,18);
+  const d=x.getImageData(0,0,32,18).data;let t=0;
+  for(let i=0;i<d.length;i+=4)t+=d[i]*.3+d[i+1]*.59+d[i+2]*.11;
+  const m=t/(d.length/4),tr=cam.srcObject.getVideoTracks()[0],id=tr.getSettings().deviceId;
+  $('warn').hidden=m>12;
+  $('warn').textContent='Gambar kamera hitam atau sangat gelap (kamera: '+(tr.label||'tidak diketahui')+'). Game mencoba kamera lain secara otomatis. Jika tetap gelap: buka penutup kamera, tutup aplikasi lain yang memakai kamera, atau pilih kamera di pengaturan (ikon ⚙).';
+  if(m>12){dark=0;return}
+  if(++dark<4)return;
+  dark=0;tried[id]=m;
+  const next=cams.find(c=>!(c.deviceId in tried));
+  const best=Object.keys(tried).sort((u,v)=>tried[v]-tried[u])[0];
+  const go=next?next.deviceId:(best!==id?best:null);
+  if(go){busy=true;openCam(go).catch(()=>{}).finally(()=>{busy=false})}
+}
+async function listCams(){
+  const ds=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+  const cur=cam.srcObject.getVideoTracks()[0].getSettings().deviceId;
+  $('camsel').innerHTML=ds.map((d,i)=>`<option value="${d.deviceId}" ${d.deviceId===cur?'selected':''}>${d.label||'Kamera '+(i+1)}</option>`).join('');
+  cams=ds;return ds;
+}
+async function openCam(id){
+  if(cam.srcObject)cam.srcObject.getTracks().forEach(t=>t.stop());
+  const v={width:{ideal:1280},height:{ideal:720}};
+  if(id)v.deviceId={exact:id};
+  cam.srcObject=await navigator.mediaDevices.getUserMedia({video:v,audio:false});
+  await cam.play();
+  return listCams();
+}
+$('camsel').onchange=async e=>{
+  try{await openCam(e.target.value)}catch(err){alert('Kamera ini tidak bisa dibuka ('+err.name+'). Pilih kamera lain.')}
+};
+
 async function startCam(){
   $('msg').textContent='Memuat kamera dan model deteksi… mohon tunggu.';
+  let camOk=false;
   try{
-    cam.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:false});
-    await cam.play();
-    const fs=await FilesetResolver.forVisionTasks(WASM);
-    const opt=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',numPoses:+$('np').value});
-    try{pose=await PoseLandmarker.createFromOptions(fs,opt('GPU'))}catch(e){pose=await PoseLandmarker.createFromOptions(fs,opt('CPU'))}
-    mode='kamera';requestAnimationFrame(loop);
+    let ds=await openCam();
+    const IR=/\bIR\b|infrared/i, cur=cam.srcObject.getVideoTracks()[0].label;
+    if(IR.test(cur)){const alt=ds.find(d=>d.label&&!IR.test(d.label));if(alt)await openCam(alt.deviceId)}
+    camOk=true;setInterval(checkDark,700);
   }catch(e){
-    mode='manual';
-    alert('Kamera atau model belum bisa dimuat. Game berjalan tanpa kamera (guru menentukan siswa yang tereliminasi).');
+    alert('Kamera tidak bisa dibuka ('+(e.name||e.message)+'). Periksa izin kamera di Chrome. Game berjalan tanpa kamera.');
+  }
+  if(camOk){
+    try{
+      const fs=await FilesetResolver.forVisionTasks(WASM);
+      const opt=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',numPoses:+$('np').value});
+      try{pose=await PoseLandmarker.createFromOptions(fs,opt('GPU'))}catch(e){pose=await PoseLandmarker.createFromOptions(fs,opt('CPU'))}
+      mode='kamera';requestAnimationFrame(loop);
+    }catch(e){
+      alert('Model deteksi belum bisa dimuat (periksa internet). Kamera tetap tampil, tetapi siswa belum terbaca otomatis.');
+    }
   }
   startGame();
 }
